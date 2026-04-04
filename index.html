@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Racine Radio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Syne+Mono&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  :root {
+    --bg: #f0eeea; --bg2: #e8e5e0; --bg3: #dedad4;
+    --fg: #111110; --fg2: #888580; --fg3: #c0bdb8;
+  }
+  html, body { height: 100%; background: var(--bg); color: var(--fg); font-family: 'Syne', sans-serif; -webkit-font-smoothing: antialiased; }
+  .app { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+  .card { width: 100%; max-width: 390px; background: var(--bg); border-radius: 24px; overflow: hidden; }
+  .status-bar { display: flex; justify-content: space-between; align-items: center; padding: 20px 24px 8px; }
+  .live-pill { display: flex; align-items: center; gap: 5px; background: var(--bg2); border-radius: 100px; padding: 4px 12px 4px 9px; opacity: 0; transition: opacity 0.4s; }
+  .live-pill.show { opacity: 1; }
+  .live-dot { width: 6px; height: 6px; border-radius: 50%; background: #22c55e; animation: blink 1.4s ease-in-out infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+  .live-text { font-family: 'Syne Mono', monospace; font-size: 11px; color: var(--fg2); letter-spacing: 1px; }
+  .header { padding: 4px 24px 16px; }
+  .brand { font-size: 48px; font-weight: 800; letter-spacing: -2.5px; line-height: 1; color: var(--fg); }
+  .brand-sub { font-family: 'Syne Mono', monospace; font-size: 12px; color: var(--fg2); margin-top: 5px; }
+  .wave-wrap { padding: 0 20px; height: 110px; }
+  canvas { display: block; width: 100%; height: 100%; }
+  .now-playing { padding: 16px 24px 6px; min-height: 88px; }
+  .np-song { font-size: 24px; font-weight: 700; letter-spacing: -0.5px; line-height: 1.2; color: var(--fg); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .np-artist { font-family: 'Syne Mono', monospace; font-size: 13px; color: var(--fg2); margin-top: 5px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .clock-row { display: flex; justify-content: space-between; align-items: baseline; padding: 10px 24px 6px; }
+  .clock { font-size: 52px; font-weight: 800; letter-spacing: -3px; line-height: 1; color: var(--fg); }
+  .clock-prefix { font-size: 18px; font-weight: 400; color: var(--fg2); margin-right: 2px; }
+  .clock-total { font-family: 'Syne Mono', monospace; font-size: 15px; color: var(--fg3); }
+  .controls { display: flex; align-items: center; justify-content: space-between; padding: 14px 24px 20px; }
+  .play-btn { width: 82px; height: 82px; border-radius: 22px; background: var(--fg); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.12s; }
+  .play-btn:active { transform: scale(0.93); }
+  .play-icon { width: 0; height: 0; border-style: solid; border-width: 12px 0 12px 22px; border-color: transparent transparent transparent #f0eeea; margin-left: 5px; }
+  .pause-icon { display: none; gap: 6px; }
+  .pause-bar { width: 5px; height: 22px; background: #f0eeea; border-radius: 3px; }
+  .play-btn.playing .play-icon { display: none; }
+  .play-btn.playing .pause-icon { display: flex; }
+  .knob-wrap { display: flex; flex-direction: column; align-items: center; gap: 7px; }
+  .knob { width: 82px; height: 82px; border-radius: 50%; background: var(--bg2); position: relative; cursor: ns-resize; user-select: none; transition: background 0.15s; }
+  .knob:hover { background: var(--bg3); }
+  .knob-marker { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); width: 5px; height: 5px; border-radius: 50%; background: var(--fg); }
+  .knob-val { font-size: 20px; font-weight: 800; color: var(--fg); position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); pointer-events: none; }
+  .knob-lbl { font-family: 'Syne Mono', monospace; font-size: 11px; color: var(--fg2); letter-spacing: 0.5px; }
+  .stats { display: flex; gap: 8px; padding: 0 16px 16px; }
+  .stat { flex: 1; background: var(--bg2); border-radius: 14px; padding: 12px 8px; text-align: center; }
+  .stat-v { font-size: 22px; font-weight: 800; letter-spacing: -1px; display: block; color: var(--fg); }
+  .stat-l { font-family: 'Syne Mono', monospace; font-size: 9px; color: var(--fg2); display: block; margin-top: 2px; }
+  .about { margin: 0 16px 16px; background: var(--fg); border-radius: 18px; padding: 22px; }
+  .about-h { font-size: 30px; font-weight: 800; letter-spacing: -1.5px; color: var(--bg); margin-bottom: 10px; }
+  .about-p { font-family: 'Syne Mono', monospace; font-size: 11px; line-height: 1.9; color: #777470; }
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+  .tag { background: rgba(255,255,255,0.07); border-radius: 100px; padding: 5px 13px; font-family: 'Syne Mono', monospace; font-size: 11px; color: #aaa8a4; }
+  .footer { display: flex; justify-content: space-between; align-items: center; padding: 4px 24px 28px; }
+  .footer-brand { font-size: 16px; font-weight: 800; letter-spacing: -0.5px; color: var(--fg3); }
+  .footer-c { font-family: 'Syne Mono', monospace; font-size: 10px; color: var(--fg3); }
+  @media (min-width: 600px) {
+    body { background: #d0cdc8; }
+    .card { box-shadow: 0 40px 80px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06); }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="card">
+    <div class="status-bar">
+      <span style="font-family:'Syne Mono',monospace;font-size:13px;color:var(--fg2)">Ambient · Vaporwave</span>
+      <div class="live-pill" id="live-pill"><div class="live-dot"></div><span class="live-text">LIVE</span></div>
+    </div>
+    <div class="header">
+      <div class="brand">Racine</div>
+      <div class="brand-sub">24/7 · Deep in the roots</div>
+    </div>
+    <div class="wave-wrap"><canvas id="cv"></canvas></div>
+    <div class="now-playing">
+      <div class="np-song" id="np-song">Deep in the roots.</div>
+      <div class="np-artist" id="np-artist">Press play to tune in</div>
+    </div>
+    <div class="clock-row">
+      <div class="clock"><span class="clock-prefix">00: </span><span id="clock">00:00</span></div>
+      <div class="clock-total">∞</div>
+    </div>
+    <div class="controls">
+      <div class="knob-wrap">
+        <div class="knob" id="vol-knob">
+          <div class="knob-marker"></div>
+          <span class="knob-val" id="vol-val">80</span>
+        </div>
+        <span class="knob-lbl">MAX</span>
+      </div>
+      <button class="play-btn" id="play-btn" onclick="togglePlay()">
+        <div class="play-icon"></div>
+        <div class="pause-icon"><div class="pause-bar"></div><div class="pause-bar"></div></div>
+      </button>
+      <div class="knob-wrap">
+        <div class="knob" id="master-knob" style="transform:rotate(-20deg)">
+          <div class="knob-marker"></div>
+        </div>
+        <span class="knob-lbl">Master</span>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat"><span class="stat-v" id="s-listeners">0</span><span class="stat-l">Listeners</span></div>
+      <div class="stat"><span class="stat-v" id="s-time">00:00</span><span class="stat-l">On Air</span></div>
+      <div class="stat"><span class="stat-v">128</span><span class="stat-l">Kbps</span></div>
+    </div>
+    <div class="about">
+      <div class="about-h">Racine.</div>
+      <div class="about-p">A transmission from somewhere deep beneath the surface. Ambient textures, vaporwave frequencies and electronic roots — broadcast continuously, for those who know how to listen.<br><br>Racine means roots in French. Because everything starts somewhere underground.</div>
+      <div class="tags">
+        <span class="tag">Ambient</span><span class="tag">Vaporwave</span><span class="tag">Chillwave</span>
+        <span class="tag">Electronic</span><span class="tag">Lo-fi</span><span class="tag">24/7</span>
+      </div>
+    </div>
+    <div class="footer">
+      <span class="footer-brand">Racine</span>
+      <span class="footer-c">© 2026 · FROM THE ROOTS</span>
+    </div>
+  </div>
+</div>
+
+<audio id="audio" crossorigin="anonymous"></audio>
+
+<script>
+  const BASE = 'https://marina-depends-ordinance-discounts.trycloudflare.com';
+  const STREAM_URL = BASE + '/stream';
+  const STATUS_URL = BASE + '/status-json.xsl';
+
+  const audio = document.getElementById('audio');
+  const cv = document.getElementById('cv');
+  const cx = cv.getContext('2d');
+  let playing = false, frame = null, timer = null, secs = 0;
+  let volVal = 80, mDeg = -20;
+  const N = 46;
+  let cur = Array(N).fill(0.1), tgt = Array(N).fill(0.1);
+
+  function resize() {
+    const p = cv.parentElement;
+    cv.width = p.clientWidth * devicePixelRatio;
+    cv.height = p.clientHeight * devicePixelRatio;
+    cx.scale(devicePixelRatio, devicePixelRatio);
+    if (!playing) drawIdle();
+  }
+
+  function rr(x,y,w,h,r) {
+    cx.beginPath();
+    cx.moveTo(x+r,y); cx.lineTo(x+w-r,y);
+    cx.arcTo(x+w,y,x+w,y+r,r); cx.lineTo(x+w,y+h-r);
+    cx.arcTo(x+w,y+h,x+w-r,y+h,r); cx.lineTo(x+r,y+h);
+    cx.arcTo(x,y+h,x,y+h-r,r); cx.lineTo(x,y+r);
+    cx.arcTo(x,y,x+r,y,r); cx.closePath();
+  }
+
+  function drawIdle() {
+    const W=cv.width/devicePixelRatio, H=cv.height/devicePixelRatio;
+    cx.clearRect(0,0,W,H);
+    const g=3, bw=(W-(N-1)*g)/N;
+    cx.fillStyle='#ccc9c3';
+    for(let i=0;i<N;i++){
+      const h=(Math.sin(i*0.65)*0.4+0.5)*H*0.55+6;
+      rr(i*(bw+g),(H-h)/2,bw,h,bw/2); cx.fill();
+    }
+  }
+
+  function drawLive() {
+    if(!playing) return;
+    const W=cv.width/devicePixelRatio, H=cv.height/devicePixelRatio;
+    cx.clearRect(0,0,W,H);
+    const g=3, bw=(W-(N-1)*g)/N;
+    for(let i=0;i<N;i++){
+      if(Math.random()<0.14) tgt[i]=Math.random()*0.88+0.07;
+      cur[i]+=(tgt[i]-cur[i])*0.14;
+      const v=cur[i], h=v*H*0.85+4;
+      cx.fillStyle=v>0.8?'#111110':v>0.55?'#555250':'#9a9790';
+      rr(i*(bw+g),(H-h)/2,bw,h,bw/2); cx.fill();
+    }
+    frame=requestAnimationFrame(drawLive);
+  }
+
+  resize();
+  window.addEventListener('resize', resize);
+
+  function parseSongTitle(raw) {
+    if (!raw || raw.trim() === '' || raw.trim() === '-') {
+      return { song: 'Racine Radio', artist: 'Live Broadcast' };
+    }
+    // Remove file extension
+    const clean = raw.replace(/\.(mp3|ogg|flac|wav|aac)$/i, '').trim();
+    // Try to split on " - "
+    const parts = clean.split(/\s+[-–—]\s+/);
+    if (parts.length >= 2) {
+      return { song: parts.slice(1).join(' - '), artist: parts[0] };
+    }
+    return { song: clean, artist: 'Racine Radio' };
+  }
+
+  function fetchNowPlaying() {
+    // Fetch as text and use regex to extract title and listeners
+    // because Icecast returns invalid JSON when title is empty ("title": - )
+    fetch(STATUS_URL)
+      .then(r => r.text())
+      .then(text => {
+        // Fix invalid JSON: replace bare - with null
+        const fixed = text.replace(/"title":\s*-\s*,/g, '"title": null,');
+        try {
+          const data = JSON.parse(fixed);
+          const src = data.icestats.source;
+          const srcObj = Array.isArray(src) ? src[0] : src;
+          const title = srcObj.title || '';
+          const listeners = srcObj.listeners || 0;
+          const { song, artist } = parseSongTitle(title);
+          document.getElementById('np-song').textContent = song;
+          document.getElementById('np-artist').textContent = artist;
+          document.getElementById('s-listeners').textContent = listeners;
+        } catch(e) {
+          // If still can't parse, try regex extraction
+          const titleMatch = text.match(/"title":\s*"([^"]+)"/);
+          if (titleMatch) {
+            const { song, artist } = parseSongTitle(titleMatch[1]);
+            document.getElementById('np-song').textContent = song;
+            document.getElementById('np-artist').textContent = artist;
+          }
+          const listenersMatch = text.match(/"listeners":(\d+)/);
+          if (listenersMatch) {
+            document.getElementById('s-listeners').textContent = listenersMatch[1];
+          }
+        }
+      })
+      .catch(() => {});
+  }
+
+  function togglePlay() {
+    playing ? stop() : start();
+  }
+
+  function start() {
+    document.getElementById('np-song').textContent = 'Connecting...';
+    document.getElementById('np-artist').textContent = 'Racine Radio';
+    audio.src = STREAM_URL;
+    audio.volume = volVal / 100;
+    audio.play().then(() => {
+      playing = true;
+      document.getElementById('play-btn').classList.add('playing');
+      document.getElementById('live-pill').classList.add('show');
+      document.getElementById('s-listeners').textContent = '1';
+      cancelAnimationFrame(frame);
+      drawLive();
+      clearInterval(timer);
+      timer = setInterval(() => {
+        secs++;
+        const m = String(Math.floor(secs/60)).padStart(2,'0');
+        const s = String(secs%60).padStart(2,'0');
+        document.getElementById('clock').textContent = m+':'+s;
+        document.getElementById('s-time').textContent = m+':'+s;
+        if (secs % 10 === 0) fetchNowPlaying();
+      }, 1000);
+      setTimeout(fetchNowPlaying, 2000);
+    }).catch(() => {
+      document.getElementById('np-song').textContent = 'Cannot connect.';
+      document.getElementById('np-artist').textContent = 'Stream may be offline';
+    });
+  }
+
+  function stop() {
+    audio.pause(); audio.src = '';
+    playing = false;
+    document.getElementById('play-btn').classList.remove('playing');
+    document.getElementById('live-pill').classList.remove('show');
+    document.getElementById('np-song').textContent = 'Deep in the roots.';
+    document.getElementById('np-artist').textContent = 'Press play to tune in';
+    cancelAnimationFrame(frame);
+    cur = Array(N).fill(0.1); drawIdle();
+    clearInterval(timer); secs = 0;
+    document.getElementById('clock').textContent = '00:00';
+    document.getElementById('s-time').textContent = '00:00';
+  }
+
+  // Vol knob
+  const vk = document.getElementById('vol-knob');
+  let vd=false, vy=0, vs=80;
+  vk.addEventListener('mousedown', e=>{vd=true;vy=e.clientY;vs=volVal;e.preventDefault();});
+  vk.addEventListener('touchstart', e=>{vd=true;vy=e.touches[0].clientY;vs=volVal;},{passive:true});
+  document.addEventListener('mousemove', e=>{
+    if(!vd) return;
+    volVal=Math.max(0,Math.min(100,vs+Math.round((vy-e.clientY)*0.8)));
+    document.getElementById('vol-val').textContent=volVal;
+    audio.volume=volVal/100;
+  });
+  document.addEventListener('touchmove', e=>{
+    if(!vd) return;
+    volVal=Math.max(0,Math.min(100,vs+Math.round((vy-e.touches[0].clientY)*0.8)));
+    document.getElementById('vol-val').textContent=volVal;
+    audio.volume=volVal/100;
+  },{passive:true});
+  document.addEventListener('mouseup', ()=>vd=false);
+  document.addEventListener('touchend', ()=>vd=false);
+
+  // Master knob
+  const mk = document.getElementById('master-knob');
+  let md=false, my=0;
+  mk.addEventListener('mousedown', e=>{md=true;my=e.clientY;e.preventDefault();});
+  mk.addEventListener('touchstart', e=>{md=true;my=e.touches[0].clientY;},{passive:true});
+  document.addEventListener('mousemove', e=>{
+    if(!md) return;
+    mDeg=Math.max(-140,Math.min(140,mDeg+(my-e.clientY)*0.8));
+    my=e.clientY;
+    mk.style.transform=`rotate(${mDeg}deg)`;
+  });
+  document.addEventListener('touchmove', e=>{
+    if(!md) return;
+    mDeg=Math.max(-140,Math.min(140,mDeg+(my-e.touches[0].clientY)*0.8));
+    my=e.touches[0].clientY;
+    mk.style.transform=`rotate(${mDeg}deg)`;
+  },{passive:true});
+  document.addEventListener('mouseup', ()=>md=false);
+  document.addEventListener('touchend', ()=>md=false);
+</script>
+</body>
+</html>
